@@ -1,0 +1,59 @@
+name: Local Assistant
+version: 1.0.0
+schema: v1
+models:
+  - name: Local Chat Model
+    provider: openai
+    model: default.chat
+    apiBase: https://localhost:3001/v1
+    apiKey: write-here-your-own-bridge-api-key
+    roles:
+      - chat
+
+  - name: Local Edit Model
+    provider: openai
+    model: default.edit
+    apiBase: https://localhost:3001/v1
+    apiKey: write-here-your-own-bridge-api-key
+    roles:
+      - edit
+
+  - name: Local Apply Model
+    provider: openai
+    model: default.apply
+    apiBase: https://localhost:3001/v1
+    apiKey: write-here-your-own-bridge-api-key
+    roles:
+      - apply
+
+  - name: Local Autocomplete Model
+    provider: openai
+    model: default.autocomplete
+    apiBase: https://localhost:3001/v1
+    apiKey: write-here-your-own-bridge-api-key
+    roles:
+      - autocomplete
+
+  - name: Local Embed Model
+    provider: openai
+    model: default.embed
+    apiBase: https://localhost:3001/v1
+    apiKey: write-here-your-own-bridge-api-key
+    roles:
+      - embed
+
+context:
+  - provider: code
+  - provider: docs
+  - provider: diff
+  - provider: terminal
+  - provider: problems
+  - provider: folder
+  - provider: codebase
+
+defaultModel:
+  chat: Local Chat Model
+  #edit: Local Edit Model
+  #apply: Local Apply Model
+  #autocomplete: Local Autocomplete Model
+  #embed: Local Embed Model
