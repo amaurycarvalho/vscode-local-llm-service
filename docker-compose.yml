@@ -13,28 +13,46 @@ services:
     restart: unless-stopped
     command: serve
 
+  ollama-check:
+    image: alpine/curl:latest
+    container_name: ollama-check
+    networks:
+      - internal
+    depends_on:
+      - ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+      sleep 60 && 
+      exit 0
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://ollama:11434/api/tags"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: "no"
+
   ollama-init:
     image: ollama/ollama:latest
     container_name: ollama-init
     networks:
       - internal
     depends_on:
-      - ollama
+      ollama-check:
+        condition: service_healthy
     environment:
       - OLLAMA_HOST=${OLLAMA_HOST}
+      - OLLAMA_LLM_DEFAULT=${OLLAMA_LLM_DEFAULT}
       - OLLAMA_LLM_CHAT=${OLLAMA_LLM_CHAT}
-      - OLLAMA_LLM_EDIT=${OLLAMA_LLM_EDIT}
-      - OLLAMA_LLM_APPLY=${OLLAMA_LLM_APPLY}
       - OLLAMA_LLM_AUTOCOMPLETE=${OLLAMA_LLM_AUTOCOMPLETE}
       - OLLAMA_LLM_EMBED=${OLLAMA_LLM_EMBED}
     entrypoint: ["/bin/sh", "-c"]
     command: >
       "sleep 5 &&
        echo 'Downloading Ollama default models...' &&
-       ollama pull ${OLLAMA_LLM} || true &&
+       ollama pull ${OLLAMA_LLM_DEFAULT} || true &&
        ollama pull ${OLLAMA_LLM_CHAT} || true &&
-       ollama pull ${OLLAMA_LLM_EDIT} || true &&
-       ollama pull ${OLLAMA_LLM_APPLY} || true &&
        ollama pull ${OLLAMA_LLM_AUTOCOMPLETE} || true &&
        ollama pull ${OLLAMA_LLM_EMBED} || true &&
        echo 'Ollama models downloaded' &&
@@ -42,56 +60,55 @@ services:
     volumes:
       - ollama_data:/root/.ollama
 
-  #cert-generator:
-  #  image: node:20-alpine
-  #  container_name: cert-generator
-  #  working_dir: /app
-  #  volumes:
-  #    - ./bridge/helpers:/app/helpers
-  #    - ./nginx/certs:/app/nginx/certs
-  #  command: ["node", "./helpers/generate-dev-cert.js"]
-  #  entrypoint:
-  #    [
-  #      "sh",
-  #      "-c",
-  #      "npm install selfsigned && node ./helpers/generate-dev-cert.js",
-  #    ]
-  #  restart: "no"
+  cert-generator:
+    image: alpine:latest
+    container_name: cert-generator
+    command: >
+      sh -c "
+        apk add --no-cache nss-tools curl &&
+        curl -L -o /usr/local/bin/mkcert https://github.com/FiloSottile/mkcert/releases/latest/download/mkcert-v1.4.4-linux-amd64 &&
+        chmod +x /usr/local/bin/mkcert &&
+        mkcert -install &&
+        mkcert -cert-file /app/nginx/certs/fullchain.pem -key-file /app/nginx/certs/privkey.pem localhost 127.0.0.1 ::1 &&
+        echo 'SSH certs generated'
+      "
+    volumes:
+      - nginx_certs:/app/nginx/certs
+    restart: "no"
 
-  #reverse-proxy:
-  #  image: nginx:latest
-  #  container_name: nginx
-  #  ports:
-  #    - "80:80"
-  #    - "443:443"
-  #  volumes:
-  #    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-  #    - ./nginx/certs:/etc/nginx/certs:ro
-  #  depends_on:
-  #    - cert-generator
-  #    - bridge
-  #  networks:
-  #    - internal
-  #    - public
-  #  restart: unless-stopped
+  reverse-proxy:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "3001:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx_certs:/etc/nginx/certs:ro
+    depends_on:
+      - cert-generator
+      - bridge
+    networks:
+      - internal
+      - public
+    restart: unless-stopped
 
   bridge:
     build: ./bridge
     container_name: llm-bridge
     networks:
       - internal
-      - public
     environment:
       - OLLAMA_HOST=${OLLAMA_HOST}
-      - BRIDGE_SERVICE_NAME=${BRIDGE_SERVICE_NAME}
-      - BRIDGE_API_KEY=${BRIDGE_API_KEY}
+      - OLLAMA_LLM_DEFAULT=${OLLAMA_LLM_DEFAULT}
       - OLLAMA_LLM_CHAT=${OLLAMA_LLM_CHAT}
-      - OLLAMA_LLM_EDIT=${OLLAMA_LLM_EDIT}
-      - OLLAMA_LLM_APPLY=${OLLAMA_LLM_APPLY}
       - OLLAMA_LLM_AUTOCOMPLETE=${OLLAMA_LLM_AUTOCOMPLETE}
       - OLLAMA_LLM_EMBED=${OLLAMA_LLM_EMBED}
-    ports:
-      - 3001:3001
+      - LLM_BRIDGE_SERVICE_NAME=${LLM_BRIDGE_SERVICE_NAME}
+      - LLM_BRIDGE_API_KEY=${LLM_BRIDGE_API_KEY}
+      - LLM_BRIDGE_PORT=${LLM_BRIDGE_PORT}
+      - LLM_BRIDGE_LOG_LEVEL=${LLM_BRIDGE_LOG_LEVEL}
+    expose:
+      - 3001
     depends_on:
       - ollama
       - ollama-init
@@ -99,6 +116,7 @@ services:
 
 volumes:
   ollama_data:
+  nginx_certs:
 
 networks:
   internal:

@@ -7,15 +7,17 @@ import { LoggerHelper } from "./LoggerHelper.js";
  */
 export class OllamaHelper {
   /**
-   * @param {object} options
-   * @param {string} [options.serviceName] - service name
-   * @param {string} [options.ollamaHost] - Ollama URL
+   * @param {string} [ollamaHost] - Ollama URL
+   * @param {string} [logLevel] - log level
    */
-  constructor(ollamaHost = process.env.OLLAMA_HOST || "http://ollama:11434") {
-    this.logger = new LoggerHelper(`Ollama`);
+  constructor(options = {}) {
+    const logLevel = options.logLevel || process.env.LOG_LEVEL || "info";
+    const ollamaHost =
+      options.ollamaHost || process.env.OLLAMA_HOST || "http://ollama:11434";
+    this.logger = new LoggerHelper("Ollama", { level: logLevel });
     this.ollama = new Ollama({ host: ollamaHost });
 
-    this.logger.info(`[ollama] LLM service initialized`, {
+    this.logger.debug("[ollama] LLM service initialized", {
       host: ollamaHost,
     });
   }
@@ -35,7 +37,7 @@ export class OllamaHelper {
       const prompt = body.messages
         ? body
         : body.prompt || body.input || JSON.stringify(body);
-      const defaultModel = process.env.LLM_MODEL || "deepseek-r1:1.5b";
+      const defaultModel = process.env.OLLAMA_LLM_DEFAULT || "deepseek-r1:1.5b";
       let answer = {
         id: "",
         created: 0,
@@ -49,7 +51,7 @@ export class OllamaHelper {
         answer.model = defaultModel;
       }
 
-      this.logger.info("[ollama] prompt received", { prompt });
+      this.logger.debug("[ollama] prompt received", { prompt });
 
       return { prompt, answer, res };
     } catch (err) {
@@ -90,7 +92,7 @@ export class OllamaHelper {
       helper.answer.created = Math.floor(Date.now() / 1000);
 
       if (helper.answer.stream) {
-        this.logger.info(
+        this.logger.debug(
           "[ollama] response as stream requested by the chat client"
         );
         this.setupStream(helper);
@@ -122,7 +124,7 @@ export class OllamaHelper {
   async processPrompt(helper) {
     if (helper.answer.stream) {
       if (!helper.answer.content || helper.answer.content.trim() === "") {
-        this.logger.info("[ollama] asking LLM for a streaming response", {
+        this.logger.debug("[ollama] asking LLM for a streaming response", {
           model: helper.answer.model,
         });
         helper.answer.content = await this.streamLLMResponse(helper);
@@ -130,13 +132,13 @@ export class OllamaHelper {
         this.writeStreamChunk(helper, helper.answer.content);
       }
       this.endStream(helper);
-      this.logger.info("[ollama] LLM answer", {
+      this.logger.debug("[ollama] LLM answer", {
         message: helper.answer.content,
       });
       return {};
     } else {
       if (!helper.answer.content || helper.answer.content.trim() === "") {
-        this.logger.info("[ollama] asking LLM for a response", {
+        this.logger.debug("[ollama] asking LLM for a response", {
           model: helper.answer.model,
         });
         helper.answer.content = await this.callLLM({
@@ -144,7 +146,7 @@ export class OllamaHelper {
           messages: helper.prompt.messages,
         });
       }
-      this.logger.info("[ollama] LLM answer", {
+      this.logger.debug("[ollama] LLM answer", {
         message: helper.answer.content,
       });
       return this.createResponse(helper);

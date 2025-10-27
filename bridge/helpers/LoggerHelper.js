@@ -10,6 +10,7 @@ export class LoggerHelper {
    * @param {object} [options] - additional options, ex: { env: "staging", lokiUrl: "http://...", console: true }
    * @param {string} [options.env] - environment (dev, staging, prod)
    * @param {string} [options.lokiUrl] - Loki URL
+   * @param {string} [options.level] - log level, ex: "debug" or "info"
    * @param {boolean} [options.console] - console output flag
    */
   constructor(serviceName, options = {}) {
@@ -20,6 +21,7 @@ export class LoggerHelper {
     this.serviceName = serviceName;
     this.env = options.env || process.env.NODE_ENV || "dev";
     this.lokiUrl = options.lokiUrl || process.env.LOKI_URL || "";
+    this.level = options.level || process.env.LOG_LEVEL || "info";
     this.consoleEnabled = options.console ?? true;
 
     const transports = [];
@@ -51,7 +53,7 @@ export class LoggerHelper {
     }
 
     this.logger = winston.createLogger({
-      level: options.level || "info",
+      level: this.level,
       transports,
       format: winston.format.combine(
         winston.format.timestamp(),
