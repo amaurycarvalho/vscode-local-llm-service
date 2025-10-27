@@ -4,7 +4,7 @@ schema: v1
 models:
   - name: Local Chat Model
     provider: openai
-    model: default.chat
+    model: OLLAMA_LLM_CHAT
     apiBase: https://localhost:3001/v1
     apiKey: write-here-your-own-bridge-api-key
     roles:
@@ -16,7 +16,7 @@ models:
 
   - name: Local Autocomplete Model
     provider: openai
-    model: default.autocomplete
+    model: OLLAMA_LLM_AUTOCOMPLETE
     apiBase: https://localhost:3001/v1
     apiKey: write-here-your-own-bridge-api-key
     roles:
@@ -26,7 +26,7 @@ models:
 
   - name: Local Embed Model
     provider: openai
-    model: default.embed
+    model: OLLAMA_LLM_EMBED
     apiBase: https://localhost:3001/v1
     apiKey: write-here-your-own-bridge-api-key
     roles:

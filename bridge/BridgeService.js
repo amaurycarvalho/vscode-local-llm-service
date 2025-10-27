@@ -88,16 +88,14 @@ export class BridgeService {
     try {
       let helper = this.ollama.getHelperFromRequest(req, res);
 
-      if (helper.answer.model === "default.chat") {
+      if (helper.answer.model === "OLLAMA_LLM_CHAT") {
         helper.answer.model = process.env.OLLAMA_LLM_CHAT;
-      } else if (helper.answer.model === "default.edit") {
-        helper.answer.model = process.env.OLLAMA_LLM_EDIT;
-      } else if (helper.answer.model === "default.apply") {
-        helper.answer.model = process.env.OLLAMA_LLM_APPLY;
-      } else if (helper.answer.model === "default.autocomplete") {
+      } else if (helper.answer.model === "OLLAMA_LLM_AUTOCOMPLETE") {
         helper.answer.model = process.env.OLLAMA_LLM_AUTOCOMPLETE;
-      } else if (helper.answer.model === "default.embed") {
+      } else if (helper.answer.model === "OLLAMA_LLM_EMBED") {
         helper.answer.model = process.env.OLLAMA_LLM_EMBED;
+      } else if (helper.answer.model === "OLLAMA_LLM_DEFAULT") {
+        helper.answer.model = process.env.OLLAMA_LLM_DEFAULT;
       }
 
       await this.ollama.answerChat(helper);

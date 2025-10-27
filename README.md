@@ -94,7 +94,7 @@ schema: v1
 models:
   - name: Local Chat Model
     provider: openai
-    model: default.chat
+    model: OLLAMA_LLM_CHAT
     apiBase: https://localhost:3001/v1
     apiKey: write-here-your-own-bridge-api-key
     roles:
@@ -106,7 +106,7 @@ models:
 
   - name: Local Autocomplete Model
     provider: openai
-    model: default.autocomplete
+    model: OLLAMA_LLM_AUTOCOMPLETE
     apiBase: https://localhost:3001/v1
     apiKey: write-here-your-own-bridge-api-key
     roles:
@@ -116,7 +116,7 @@ models:
 
   - name: Local Embed Model
     provider: openai
-    model: default.embed
+    model: OLLAMA_LLM_EMBED
     apiBase: https://localhost:3001/v1
     apiKey: write-here-your-own-bridge-api-key
     roles:
@@ -167,7 +167,7 @@ Inside VSCode, try prompts like:
 |---|---|---|
 | Ollama | Local LLM server | - |
 | Nginx | HTTPS proxy reverse | - |
-| Bridge | Node.js OpenAI-like proxy | http://localhost:3001/v1 |
+| Bridge | Node.js OpenAI-like proxy | https://localhost:3001/v1 |
 
 ---
 
@@ -197,7 +197,30 @@ sudo docker-compose restart
 curl -X POST https://localhost:3001/v1/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer $LLM_BRIDGE_API_KEY" --insecure -d '{"messages": [{ "role": "user", "content": "Hello" }]}'
 ```
 
-#### Downloading and testing Deepseek model:
+#### Want to run it on a centered server?
+
+1. Run the container on the server;
+2. Configure `apiBase` in the user's `.continue/config.yaml` to point to your server URL. Example: `https://yourserver:3001/v1`.
+
+#### Want to run a different Ollama's LLM model?
+
+For all users:
+
+1. Change the `OLLAMA_LLM_CHAT` value in the `.env` file on the server, either to a valid Ollama model name or to one of the predefined environment variables;
+2. Restart the container.
+
+For a group of users:
+
+1. Change `OLLAMA_LLM_DEFAULT` in the `.env` file;
+2. Restart the container;
+3. Change the `model` value in the user's `.continue/config.yaml` file, pointing to `OLLAMA_LLM_DEFAULT`.
+
+For a specific user only:
+
+1. Manually download the new model to the server (see below) or change `docker-compose.yml` inserting a new `ollama pull` in the `ollama-init` service and restart the container;
+2. Change the `model` value in the user's `.continue/config.yaml` file, pointing to the correct model name.
+
+##### Downloading and testing a new LLM model:
 
 ```
 sudo docker exec -it ollama sh
