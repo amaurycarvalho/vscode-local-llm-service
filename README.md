@@ -43,7 +43,7 @@ LLM_EMBED_LIGHT=nomic-embed-text:v1.5
 
 # Ollama setup
 OLLAMA_HOST=http://ollama:11434
-OLLAMA_LLM_DEFAULT=${LLM_CHAT_ULTRA_LIGHT}
+OLLAMA_DEFAULT_MODEL=${LLM_CHAT_ULTRA_LIGHT}
 OLLAMA_LLM_CHAT=${LLM_CODER_ULTRA_LIGHT}
 OLLAMA_LLM_AUTOCOMPLETE=${LLM_CODER_ULTRA_LIGHT}
 OLLAMA_LLM_EMBED=${LLM_EMBED_ULTRA_LIGHT}
@@ -211,9 +211,9 @@ For all users:
 
 For a group of users:
 
-1. Change `OLLAMA_LLM_DEFAULT` in the `.env` file;
+1. Change `OLLAMA_DEFAULT_MODEL` in the `.env` file;
 2. Restart the container;
-3. Change the `model` value in the user's `.continue/config.yaml` file, pointing to `OLLAMA_LLM_DEFAULT`.
+3. Change the `model` value in the user's `.continue/config.yaml` file, pointing to `OLLAMA_DEFAULT_MODEL`.
 
 For a specific user only:
 

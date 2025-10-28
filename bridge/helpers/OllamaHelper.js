@@ -28,7 +28,7 @@ export class OllamaHelper {
    * @param res HTTP response object
    * @returns helper object
    * helper: { prompt, answer, res }
-   * prompt: { model, stream, messages: [ { role: "user", content: "text"} ] }
+   * prompt: { model, stream, tools, tool_calls, messages: [ { role: "user", content: "text", } ] }
    * answer: { id, created, stream, model, defaultModel, content }
    */
   getHelperFromRequest(req, res) {
@@ -37,19 +37,30 @@ export class OllamaHelper {
       const prompt = body.messages
         ? body
         : body.prompt || body.input || JSON.stringify(body);
-      const defaultModel = process.env.OLLAMA_LLM_DEFAULT || "deepseek-r1:1.5b";
-      let answer = {
+      const defaultModel =
+        process.env.OLLAMA_DEFAULT_MODEL || "deepseek-r1:1.5b";
+
+      if (prompt.model) {
+        if (
+          prompt.model.trim() === "" ||
+          prompt.model === "default" ||
+          prompt.model === "OLLAMA_DEFAULT_MODEL"
+        ) {
+          prompt.model = defaultModel;
+        }
+      } else {
+        prompt.model = defaultModel;
+      }
+
+      const answer = {
         id: "",
         created: 0,
         stream: (prompt.stream || body.stream) === true,
-        model: prompt.model || defaultModel,
+        model: prompt.model,
         defaultModel,
         content: "",
+        tool_calls: [],
       };
-
-      if (answer.model.trim() === "" || answer.model === "default") {
-        answer.model = defaultModel;
-      }
 
       this.logger.debug("[ollama] prompt received", { prompt });
 
@@ -62,21 +73,24 @@ export class OllamaHelper {
 
   /**
    * LLM caller (Ollama API helper)
-   * @param prompt Prompt object { model, messages: [{ role: "user", content: "text" }] }
-   * @returns LLM answer text
+   * @param helper Helper object { model, messages: [{ role: "user", content: "text" }] }
    */
-  async callLLM(prompt) {
+  async callLLM(helper) {
     try {
       const response = await this.ollama.chat({
-        model: prompt.model,
-        messages: prompt.messages,
+        model: helper.answer.model,
+        messages: helper.prompt.messages,
+        tools: helper.prompt.tools,
         stream: false,
       });
-      return response?.message?.content || JSON.stringify(response);
+      helper.answer.tool_calls = response.message.tool_calls;
+      helper.answer.content =
+        response?.message?.content || JSON.stringify(response);
     } catch (err) {
       this.logger.error("[ollama] LLM call failed", {
         error: err.message,
-        prompt,
+        stack: err.stack,
+        prompt: helper.prompt,
       });
       throw err;
     }
@@ -106,14 +120,11 @@ export class OllamaHelper {
     } catch (err) {
       this.logger.error("[ollama] internal error", {
         error: err.message,
+        stack: err.stack,
         answer: helper.answer,
         prompt: helper.prompt,
       });
-      if (!helper.res.headersSent) {
-        helper.res.status(500).json({ error: err.message });
-      } else {
-        helper.res.end();
-      }
+      throw err;
     }
   }
 
@@ -126,6 +137,7 @@ export class OllamaHelper {
       if (!helper.answer.content || helper.answer.content.trim() === "") {
         this.logger.debug("[ollama] asking LLM for a streaming response", {
           model: helper.answer.model,
+          prompt: helper.prompt,
         });
         helper.answer.content = await this.streamLLMResponse(helper);
       } else {
@@ -140,11 +152,9 @@ export class OllamaHelper {
       if (!helper.answer.content || helper.answer.content.trim() === "") {
         this.logger.debug("[ollama] asking LLM for a response", {
           model: helper.answer.model,
+          prompt: helper.prompt,
         });
-        helper.answer.content = await this.callLLM({
-          model: helper.answer.model,
-          messages: helper.prompt.messages,
-        });
+        await this.callLLM(helper);
       }
       this.logger.debug("[ollama] LLM answer", {
         message: helper.answer.content,
@@ -208,6 +218,41 @@ export class OllamaHelper {
   }
 
   /**
+   * Chat completion streaming response
+   */
+  async streamLLMResponse(helper) {
+    helper.answer.content = "";
+    helper.answer.tool_calls = [];
+
+    try {
+      for await (const chunk of await this.ollama.chat({
+        model: helper.answer.model,
+        messages: helper.prompt.messages,
+        tools: helper.prompt.tools,
+        stream: true,
+      })) {
+        if (chunk.message?.content) {
+          this.writeStreamChunk(helper, chunk.message?.content);
+          helper.answer.content += chunk.message?.content;
+        }
+        if (chunk.message?.tool_calls?.length) {
+          helper.answer.tool_calls = chunk.message.tool_calls;
+        }
+        if (chunk.done) break;
+      }
+    } catch (err) {
+      helper.answer.content = "[ollama] error in streaming";
+      this.logger.error(helper.answer.content, {
+        error: err.message,
+        answer: helper.answer,
+        prompt: helper.prompt,
+      });
+      this.writeStreamChunk(helper, helper.answer.content);
+    }
+    return helper.answer.content;
+  }
+
+  /**
    * Finalize chat completion streaming (SSE)
    */
   endStream(helper) {
@@ -222,35 +267,5 @@ export class OllamaHelper {
     );
     helper.res.write("data: [DONE]\n\n");
     helper.res.end();
-  }
-
-  /**
-   * Chat completion streaming response
-   */
-  async streamLLMResponse(helper) {
-    helper.answer.content = "";
-
-    try {
-      for await (const chunk of await this.ollama.chat({
-        model: helper.answer.model,
-        messages: helper.prompt.messages,
-        stream: true,
-      })) {
-        if (chunk.message?.content) {
-          this.writeStreamChunk(helper, chunk.message?.content);
-          helper.answer.content += chunk.message?.content;
-        }
-        if (chunk.done) break;
-      }
-    } catch (err) {
-      helper.answer.content = "[ollama] error in streaming";
-      this.logger.error(helper.answer.content, {
-        error: err.message,
-        answer: helper.answer,
-        prompt: helper.prompt,
-      });
-      this.writeStreamChunk(helper, helper.answer.content);
-    }
-    return helper.answer.content;
   }
 }

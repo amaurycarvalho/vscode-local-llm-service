@@ -15,7 +15,7 @@ export class LoggerHelper {
    */
   constructor(serviceName, options = {}) {
     if (!serviceName) {
-      throw new Error("[logger] serviceName é obrigatório no construtor.");
+      throw new Error("[logger] serviceName is missing.");
     }
 
     this.serviceName = serviceName;

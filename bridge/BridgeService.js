@@ -94,8 +94,8 @@ export class BridgeService {
         helper.answer.model = process.env.OLLAMA_LLM_AUTOCOMPLETE;
       } else if (helper.answer.model === "OLLAMA_LLM_EMBED") {
         helper.answer.model = process.env.OLLAMA_LLM_EMBED;
-      } else if (helper.answer.model === "OLLAMA_LLM_DEFAULT") {
-        helper.answer.model = process.env.OLLAMA_LLM_DEFAULT;
+      } else if (helper.answer.model === "OLLAMA_DEFAULT_MODEL") {
+        helper.answer.model = process.env.OLLAMA_DEFAULT_MODEL;
       }
 
       await this.ollama.answerChat(helper);

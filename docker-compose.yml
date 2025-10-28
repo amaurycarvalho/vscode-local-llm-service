@@ -19,7 +19,8 @@ services:
     networks:
       - internal
     depends_on:
-      - ollama
+      ollama:
+        condition: service_started
     entrypoint: ["/bin/sh", "-c"]
     command: >
       "
@@ -38,20 +39,16 @@ services:
     container_name: ollama-init
     networks:
       - internal
-    depends_on:
-      ollama-check:
-        condition: service_healthy
     environment:
       - OLLAMA_HOST=${OLLAMA_HOST}
-      - OLLAMA_LLM_DEFAULT=${OLLAMA_LLM_DEFAULT}
+      - OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL}
       - OLLAMA_LLM_CHAT=${OLLAMA_LLM_CHAT}
       - OLLAMA_LLM_AUTOCOMPLETE=${OLLAMA_LLM_AUTOCOMPLETE}
       - OLLAMA_LLM_EMBED=${OLLAMA_LLM_EMBED}
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "sleep 5 &&
-       echo 'Downloading Ollama default models...' &&
-       ollama pull ${OLLAMA_LLM_DEFAULT} || true &&
+      "echo 'Downloading Ollama default models...' &&
+       ollama pull ${OLLAMA_DEFAULT_MODEL} || true &&
        ollama pull ${OLLAMA_LLM_CHAT} || true &&
        ollama pull ${OLLAMA_LLM_AUTOCOMPLETE} || true &&
        ollama pull ${OLLAMA_LLM_EMBED} || true &&
@@ -59,6 +56,9 @@ services:
        exit 0"
     volumes:
       - ollama_data:/root/.ollama
+    depends_on:
+      ollama-check:
+        condition: service_healthy
 
   cert-generator:
     image: alpine:latest
@@ -99,7 +99,7 @@ services:
       - internal
     environment:
       - OLLAMA_HOST=${OLLAMA_HOST}
-      - OLLAMA_LLM_DEFAULT=${OLLAMA_LLM_DEFAULT}
+      - OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL}
       - OLLAMA_LLM_CHAT=${OLLAMA_LLM_CHAT}
       - OLLAMA_LLM_AUTOCOMPLETE=${OLLAMA_LLM_AUTOCOMPLETE}
       - OLLAMA_LLM_EMBED=${OLLAMA_LLM_EMBED}
@@ -110,8 +110,8 @@ services:
     expose:
       - 3001
     depends_on:
-      - ollama
-      - ollama-init
+      ollama-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:
